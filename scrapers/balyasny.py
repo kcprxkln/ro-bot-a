@@ -15,22 +15,28 @@ class BalyasnyScraper(BaseScraper):
     name = "balyasny"
 
     def fetch(self) -> list[Job]:
-        browser = playwright_util.get_browser()
-        context = browser.new_context(
-            user_agent=USER_AGENT,
-            viewport={"width": 1366, "height": 900},
-            locale="en-US",
-        )
-        page = context.new_page()
-        page.goto("https://bambusdev.my.site.com/s/", wait_until="domcontentloaded", timeout=60000)
-        page.wait_for_timeout(15000)
-        for _ in range(12):
-            page.mouse.wheel(0, 2500)
-            page.wait_for_timeout(1000)
-        page.wait_for_timeout(3000)
-        html = page.content()
-        context.close()
+        def work(browser):
+            context = browser.new_context(
+                user_agent=USER_AGENT,
+                viewport={"width": 1366, "height": 900},
+                locale="en-US",
+            )
+            page = context.new_page()
+            page.goto(
+                "https://bambusdev.my.site.com/s/",
+                wait_until="domcontentloaded",
+                timeout=60000,
+            )
+            page.wait_for_timeout(15000)
+            for _ in range(12):
+                page.mouse.wheel(0, 2500)
+                page.wait_for_timeout(1000)
+            page.wait_for_timeout(3000)
+            html = page.content()
+            context.close()
+            return html
 
+        html = playwright_util.run(work)
         jobs = []
         seen = set()
         for data_id, body, meta in CARD_RE.findall(html):

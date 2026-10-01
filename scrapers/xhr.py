@@ -37,36 +37,39 @@ def iter_json_objects(node):
 
 def capture_json(page_url, url_patterns, timeout_ms=45000, scroll=True):
     """Load page_url in a headless browser and collect JSON responses."""
-    browser = playwright_util.get_browser()
-    context = browser.new_context(
-        user_agent=USER_AGENT,
-        viewport={"width": 1366, "height": 900},
-        locale="en-US",
-        extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
-    )
-    page = context.new_page()
-    captured = []
 
-    def on_response(resp):
-        try:
-            if "json" not in resp.headers.get("content-type", ""):
-                return
-            if url_patterns and not any(re.search(p, resp.url) for p in url_patterns):
-                return
-            captured.append({"url": resp.url, "data": resp.json()})
-        except Exception:
-            pass
+    def work(browser):
+        context = browser.new_context(
+            user_agent=USER_AGENT,
+            viewport={"width": 1366, "height": 900},
+            locale="en-US",
+            extra_http_headers={"Accept-Language": "en-US,en;q=0.9"},
+        )
+        page = context.new_page()
+        captured = []
 
-    page.on("response", on_response)
-    page.goto(page_url, wait_until="domcontentloaded", timeout=timeout_ms)
-    page.wait_for_timeout(7000)
-    if scroll:
-        for _ in range(6):
-            page.mouse.wheel(0, 2200)
-            page.wait_for_timeout(1200)
-    page.wait_for_timeout(2500)
-    context.close()
-    return captured
+        def on_response(resp):
+            try:
+                if "json" not in resp.headers.get("content-type", ""):
+                    return
+                if url_patterns and not any(re.search(p, resp.url) for p in url_patterns):
+                    return
+                captured.append({"url": resp.url, "data": resp.json()})
+            except Exception:
+                pass
+
+        page.on("response", on_response)
+        page.goto(page_url, wait_until="domcontentloaded", timeout=timeout_ms)
+        page.wait_for_timeout(7000)
+        if scroll:
+            for _ in range(6):
+                page.mouse.wheel(0, 2200)
+                page.wait_for_timeout(1200)
+        page.wait_for_timeout(2500)
+        context.close()
+        return captured
+
+    return playwright_util.run(work)
 
 
 def looks_like_job(d):
